@@ -10,6 +10,11 @@ use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
 use crate::{config::Config, core::AppState};
 
+pub mod check;
+pub mod content_snapshot;
+pub mod incident;
+pub mod url;
+
 mod health;
 
 /// Assembles the HTTP surface: routes, CORS, tracing. Handlers in this

@@ -1,0 +1,44 @@
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+use crate::database::models::incident::IncidentRow;
+
+/// Opens a new incident for a URL that started failing checks. `started_at`
+/// is assigned server-side (now).
+#[derive(Debug, Deserialize)]
+pub struct OpenIncident {
+    pub url_id: Uuid,
+    pub cause: Option<String>,
+}
+
+/// Marks an open incident resolved. `resolved_at` is assigned server-side
+/// (now).
+#[derive(Debug, Deserialize)]
+pub struct ResolveIncident {
+    pub cause: Option<String>,
+}
+
+/// `incidents` row as returned to API clients.
+#[derive(Debug, Serialize)]
+pub struct IncidentResponse {
+    pub id: Uuid,
+    pub url_id: Uuid,
+    pub started_at: DateTime<Utc>,
+    pub resolved_at: Option<DateTime<Utc>>,
+    pub resolved: bool,
+    pub cause: Option<String>,
+}
+
+impl From<IncidentRow> for IncidentResponse {
+    fn from(row: IncidentRow) -> Self {
+        Self {
+            id: row.id,
+            url_id: row.url_id,
+            started_at: row.started_at,
+            resolved_at: row.resolved_at,
+            resolved: row.resolved,
+            cause: row.cause,
+        }
+    }
+}

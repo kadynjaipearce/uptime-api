@@ -25,11 +25,15 @@ async fn main() {
 }
 
 async fn run() -> Result<()> {
+    dotenvy::dotenv().ok();
+
     let config = Config::load()?;
     let secrets = Secrets::load()?;
     let db = Database::connect(&secrets.database_url, 5).await?;
-    let state = Arc::new(AppState { db, secrets });
 
+    db.migrate().await?;
+
+    let state = Arc::new(AppState { db, secrets });
     let app = http::router(&config, state)?;
 
     let addr = format!("0.0.0.0:{}", config.port);

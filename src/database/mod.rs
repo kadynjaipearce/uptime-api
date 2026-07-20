@@ -19,4 +19,15 @@ impl Database {
 
         Ok(Self { pool })
     }
+
+    // Run all pending migrations on startup
+    pub async fn migrate(&self) -> Result<()> {
+        sqlx::migrate!("./migrations")
+            .run(&self.pool)
+            .await
+            .context("failed to run migrations")?;
+
+        tracing::info!("migrations upto date");
+        Ok(())
+    }
 }

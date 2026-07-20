@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.104"
 axum = "0.8.9"
+chrono = { version = "0.4.45", features = ["serde"] }
 color-eyre = "0.6.5"
 dotenvy = "0.15.7"
 serde = { version = "1.0.229", features = ["derive"] }
@@ -16,3 +17,4 @@ tokio = { version = "1.53.0", features = ["full"] }
 tower-http = { version = "0.6.6", features = ["cors", "trace"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+uuid = { version = "1.23.2", features = ["v4", "serde"] }
