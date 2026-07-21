@@ -2,7 +2,15 @@ use std::sync::Arc;
 
 use anyhow::Result;
 
-use crate::{config::Config, core::AppState, database::Database, secrets::Secrets};
+use crate::{
+    config::Config,
+    core::{
+        AppState,
+        scheduler::{Scheduler, TICK_INTERVAL},
+    },
+    database::Database,
+    secrets::Secrets,
+};
 
 mod config;
 mod core;
@@ -32,6 +40,9 @@ async fn run() -> Result<()> {
     let db = Database::connect(&secrets.database_url, 5).await?;
 
     db.migrate().await?;
+
+    let scheduler = Scheduler::new(db.clone(), TICK_INTERVAL, config.regions.clone());
+    tokio::spawn(async move { scheduler.run().await });
 
     let state = Arc::new(AppState { db, secrets });
     let app = http::router(&config, state)?;

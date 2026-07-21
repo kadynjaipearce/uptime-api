@@ -83,4 +83,34 @@ impl Database {
 
         Ok(result.rows_affected() > 0)
     }
+
+    pub async fn claim_due_urls(&self, limit: i64) -> sqlx::Result<Vec<UrlRow>> {
+        let mut tx = self.pool.begin().await?;
+
+        let due = sqlx::query_as::<_, UrlRow>(
+            r#"
+            SELECT * FROM url
+            WHERE is_active AND next_check_at <= now()
+            ORDER BY next_check_at
+            LIMIT $1
+            FOR UPDATE SKIP LOCKED
+            "#,
+        )
+        .bind(limit)
+        .fetch_all(&mut *tx)
+        .await?;
+
+        for url in &due {
+            sqlx::query(
+                "UPDATE url SET next_check_at = now() + make_interval(secs => $2) WHERE id = $1",
+            )
+            .bind(url.id)
+            .bind(url.check_interval_seconds)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(due)
+    }
 }

@@ -3,6 +3,7 @@ use sqlx::{PgPool, postgres::PgPoolOptions};
 
 pub mod models;
 
+#[derive(Clone)]
 pub struct Database {
     pub pool: PgPool,
 }
