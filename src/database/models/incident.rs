@@ -54,7 +54,10 @@ impl Database {
         .await
     }
 
-    pub async fn list_open_incidents_for_url(&self, url_id: Uuid) -> sqlx::Result<Vec<IncidentRow>> {
+    pub async fn list_open_incidents_for_url(
+        &self,
+        url_id: Uuid,
+    ) -> sqlx::Result<Vec<IncidentRow>> {
         sqlx::query_as::<_, IncidentRow>(
             "SELECT * FROM incidents WHERE url_id = $1 AND resolved = false ORDER BY started_at DESC",
         )

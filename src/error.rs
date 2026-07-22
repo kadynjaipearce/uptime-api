@@ -9,6 +9,7 @@ use serde::Serialize;
 /// `?` inside a handler converts into this automatically; the underlying
 /// error is logged with full context and the client gets an opaque 500.
 #[derive(Debug, thiserror::Error)]
+#[allow(dead_code)]
 pub enum AppError {
     #[error("not found")]
     NotFound,

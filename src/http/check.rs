@@ -68,6 +68,6 @@ impl From<CheckRow> for CheckResponse {
     }
 }
 
-pub async fn get_check_history(State(state): State<Arc<AppState>>) -> ApiResponse<AppState> {
+pub async fn get_check_history(State(state): State<Arc<AppState>>) -> ApiResponse<CheckResponse> {
     unimplemented!()
 }

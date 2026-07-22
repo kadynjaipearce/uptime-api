@@ -56,7 +56,11 @@ impl Database {
         .await
     }
 
-    pub async fn list_checks_for_url(&self, url_id: Uuid, limit: i64) -> sqlx::Result<Vec<CheckRow>> {
+    pub async fn list_checks_for_url(
+        &self,
+        url_id: Uuid,
+        limit: i64,
+    ) -> sqlx::Result<Vec<CheckRow>> {
         sqlx::query_as::<_, CheckRow>(
             "SELECT * FROM checks WHERE url_id = $1 ORDER BY checked_at DESC LIMIT $2",
         )
