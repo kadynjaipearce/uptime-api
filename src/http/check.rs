@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
+use axum::extract::State;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::database::models::check::CheckRow;
+use crate::{core::AppState, database::models::check::CheckRow, response::ApiResponse};
 
 /// Result of a single probe, reported by a region worker after it checks a
 /// URL. `id` and `checked_at` are assigned server-side.
@@ -63,4 +66,8 @@ impl From<CheckRow> for CheckResponse {
             content_hash: row.content_hash,
         }
     }
+}
+
+pub async fn get_check_history(State(state): State<Arc<AppState>>) -> ApiResponse<AppState> {
+    unimplemented!()
 }

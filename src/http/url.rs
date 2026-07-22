@@ -1,8 +1,14 @@
+use axum::extract::State;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::database::models::url::UrlRow;
+use crate::{
+    core::AppState,
+    database::{Database, models::url::UrlRow},
+    response::ApiResponse,
+};
 
 /// Payload for registering a new URL to monitor.
 #[derive(Debug, Deserialize)]
@@ -50,4 +56,20 @@ impl From<UrlRow> for UrlResponse {
             created_at: row.created_at,
         }
     }
+}
+
+pub async fn create_url(State(state): State<Arc<AppState>>) -> ApiResponse<UrlResponse> {
+    unimplemented!();
+}
+
+pub async fn get_url(State(state): State<Arc<AppState>>) -> ApiResponse<UrlResponse> {
+    unimplemented!()
+}
+
+pub async fn update_url(State(state): State<Arc<AppState>>) -> ApiResponse<UrlResponse> {
+    unimplemented!()
+}
+
+pub async fn delete_url(State(state): State<Arc<AppState>>) -> ApiResponse<UrlResponse> {
+    unimplemented!()
 }

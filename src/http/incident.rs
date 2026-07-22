@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
+use axum::extract::State;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::database::models::incident::IncidentRow;
+use crate::{core::AppState, database::models::incident::IncidentRow, response::ApiResponse};
 
 /// Opens a new incident for a URL that started failing checks. `started_at`
 /// is assigned server-side (now).
@@ -41,4 +44,8 @@ impl From<IncidentRow> for IncidentResponse {
             cause: row.cause,
         }
     }
+}
+
+pub async fn get_incident(State(state): State<Arc<AppState>>) -> ApiResponse<IncidentResponse> {
+    unimplemented!()
 }
