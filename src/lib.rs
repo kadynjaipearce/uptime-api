@@ -16,6 +16,7 @@ pub mod config;
 pub mod core;
 pub mod database;
 pub mod error;
+pub mod extract;
 pub mod http;
 pub mod response;
 pub mod secrets;

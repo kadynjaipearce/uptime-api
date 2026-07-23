@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Json, Path, Query, State},
+    extract::{Path, State},
     http::StatusCode,
 };
 use chrono::{DateTime, Utc};
@@ -12,6 +12,7 @@ use crate::{
     core::AppState,
     database::{Database, models::url::UrlRow},
     error::AppError,
+    extract::AppJson,
     response::ApiResponse,
 };
 
@@ -129,7 +130,7 @@ impl UrlPayload for UpdateUrl {
 
 pub async fn create_url(
     State(state): State<Arc<AppState>>,
-    Json(params): Json<CreateUrl>,
+    AppJson(params): AppJson<CreateUrl>,
 ) -> Result<ApiResponse<UrlResponse>, AppError> {
     params.validate()?;
 
@@ -151,7 +152,7 @@ pub async fn get_url(
 pub async fn update_url(
     State(state): State<Arc<AppState>>,
     Path(url_id): Path<Uuid>,
-    Json(params): Json<UpdateUrl>,
+    AppJson(params): AppJson<UpdateUrl>,
 ) -> Result<ApiResponse<UrlResponse>, AppError> {
     params.validate()?;
 

@@ -63,6 +63,7 @@ impl IntoResponse for AppError {
 
         #[derive(Serialize)]
         struct Envelope {
+            kind: &'static str,
             status: u16,
             message: String,
         }
@@ -70,6 +71,7 @@ impl IntoResponse for AppError {
         (
             status,
             Json(Envelope {
+                kind: "error",
                 status: status.as_u16(),
                 message,
             }),
