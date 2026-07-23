@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::database::Database;
 
-/// How many due URLs a single tick will claim. Keeps one slow tick from
+/// How many due URLs a single tick will claim.
 const BATCH_SIZE: i64 = 100;
 
 /// How often the scheduler checks for due URLs.
@@ -48,6 +48,11 @@ impl Scheduler {
 
         for url in due {
             self.enqueue_check_round(url.id).await;
+            tracing::info!(
+                target = "queue event",
+                url_id = ?url.id,
+                domain = ?url.domain
+            )
         }
 
         Ok(())
