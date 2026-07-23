@@ -32,13 +32,13 @@ pub fn router(config: &Config, state: Arc<AppState>) -> Result<Router> {
         .route("/health", get(health::health))
         .route("/url", post(url::create_url))
         .route(
-            "/url/:id",
+            "/url/{id}",
             get(url::get_url)
                 .patch(url::update_url)
                 .delete(url::delete_url),
         )
-        .route("/url/:id/incidents", get(incident::get_incident))
-        .route("/url/:id/checks", get(check::get_check_history));
+        .route("/url/{id}/incidents", get(incident::get_incident))
+        .route("/url/{id}/checks", get(check::get_check_history));
 
     Ok(Router::new()
         .nest(format!("/api/{}/", config.version).as_str(), merged_router)
