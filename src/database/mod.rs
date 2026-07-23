@@ -3,6 +3,7 @@ use sqlx::{PgPool, postgres::PgPoolOptions};
 
 pub mod models;
 
+#[derive(Clone)]
 pub struct Database {
     pub pool: PgPool,
 }
@@ -18,5 +19,16 @@ impl Database {
         tracing::info!("database connected");
 
         Ok(Self { pool })
+    }
+
+    // Run all pending migrations on startup
+    pub async fn migrate(&self) -> Result<()> {
+        sqlx::migrate!("./migrations")
+            .run(&self.pool)
+            .await
+            .context("failed to run migrations")?;
+
+        tracing::info!("migrations upto date");
+        Ok(())
     }
 }

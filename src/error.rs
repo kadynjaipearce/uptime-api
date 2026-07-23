@@ -9,6 +9,7 @@ use serde::Serialize;
 /// `?` inside a handler converts into this automatically; the underlying
 /// error is logged with full context and the client gets an opaque 500.
 #[derive(Debug, thiserror::Error)]
+#[allow(dead_code)]
 pub enum AppError {
     #[error("not found")]
     NotFound,
@@ -62,6 +63,7 @@ impl IntoResponse for AppError {
 
         #[derive(Serialize)]
         struct Envelope {
+            kind: &'static str,
             status: u16,
             message: String,
         }
@@ -69,6 +71,7 @@ impl IntoResponse for AppError {
         (
             status,
             Json(Envelope {
+                kind: "error",
                 status: status.as_u16(),
                 message,
             }),
