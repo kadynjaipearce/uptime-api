@@ -9,10 +9,7 @@ use std::sync::{Arc, LazyLock};
 use uuid::Uuid;
 
 use crate::{
-    core::AppState,
-    database::{Database, models::url::UrlRow},
-    error::AppError,
-    extract::AppJson,
+    core::AppState, database::models::url::UrlRow, error::AppError, extract::AppJson,
     response::ApiResponse,
 };
 
@@ -84,17 +81,17 @@ pub trait UrlPayload {
                 return Err(AppError::BadRequest("domain must be valid TLD".into()));
             }
         }
-        if let Some(name) = self.name() {
-            if name.trim().is_empty() {
-                return Err(AppError::BadRequest("name must not be empty".into()));
-            }
+        if let Some(name) = self.name()
+            && name.trim().is_empty()
+        {
+            return Err(AppError::BadRequest("name must not be empty".into()));
         }
-        if let Some(secs) = self.check_interval_seconds() {
-            if secs <= 0 {
-                return Err(AppError::BadRequest(
-                    "check_interval_seconds must be positive".into(),
-                ));
-            }
+        if let Some(secs) = self.check_interval_seconds()
+            && secs <= 0
+        {
+            return Err(AppError::BadRequest(
+                "check_interval_seconds must be positive".into(),
+            ));
         }
         Ok(())
     }
