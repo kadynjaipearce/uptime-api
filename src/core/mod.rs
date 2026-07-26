@@ -1,5 +1,6 @@
 use crate::{database::Database, secrets::Secrets};
 
+pub mod handler;
 pub mod health;
 pub mod scheduler;
 

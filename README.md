@@ -99,6 +99,14 @@ Base path: `/api/{VERSION_SLUG}/`
 cargo test
 ```
 
+## Development
+
+Enable the repo's git hooks once per clone to run `cargo fmt` and `cargo clippy` before each commit (same checks CI runs):
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ## License
 
 TBD. The core API is planned to be open source. License file coming.
