@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Running cargo fmt..."
+if ! cargo fmt --all -- --check; then
+    echo
+    echo "rustfmt found formatting issues. Run 'cargo fmt --all' and re-stage." >&2
+    exit 1
+fi
+
+echo "Running cargo clippy..."
+if ! cargo clippy --all-targets --all-features -- -D warnings; then
+    echo
+    echo "clippy found issues. Fix them before committing." >&2
+    exit 1
+fi

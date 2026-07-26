@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use axum::{
     Router,
     http::{HeaderValue, Method, header::CONTENT_TYPE},
-    routing::{delete, get, patch, post},
+    routing::{get, post},
 };
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
