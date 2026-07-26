@@ -1,3 +1,4 @@
+pub mod check;
 pub mod dns;
 pub mod http;
 pub mod tcp;

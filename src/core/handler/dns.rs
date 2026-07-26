@@ -1,3 +1,5 @@
+use std::net::IpAddr;
+
 // encode domain names into byte array format for dns lookup.
 pub fn encode_domain_name(domain: &str) -> Vec<u8> {
     if domain.is_empty() {
@@ -15,4 +17,12 @@ pub fn encode_domain_name(domain: &str) -> Vec<u8> {
     result.push(0_u8);
 
     result
+}
+
+/// Resolves `domain` to an IP address, tracing the lookup manually rather
+/// than going through the OS resolver, so the DNS stage's own timing can be
+/// captured for `checks.dns_ms`.
+pub async fn resolve(domain: &str) -> Result<IpAddr, anyhow::Error> {
+    let _ = encode_domain_name(domain);
+    unimplemented!()
 }
