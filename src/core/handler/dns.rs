@@ -1,7 +1,4 @@
-use std::{
-    net::{IpAddr, Ipv4Addr},
-    u8,
-};
+use std::net::{IpAddr, Ipv4Addr};
 
 // encode domain names into byte array format for dns lookup.
 pub fn encode_domain_name(domain: &str) -> Vec<u8> {
@@ -51,11 +48,11 @@ pub fn build_query_packet(encoded_domain: Vec<u8>, query_type: DnsQuery) -> (Vec
     (query, random)
 }
 
-async fn send_dns_packet(query: Vec<u8>) -> Result<Vec<u8>, anyhow::Error> {
+async fn send_dns_packet(_query: Vec<u8>) -> Result<Vec<u8>, anyhow::Error> {
     unimplemented!()
 }
 
-fn parse_dns_response(response: Vec<u8>, id: u16) -> Result<Ipv4Addr, anyhow::Error> {
+fn parse_dns_response(_response: Vec<u8>, _id: u16) -> Result<Ipv4Addr, anyhow::Error> {
     unimplemented!()
 }
 
