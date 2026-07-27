@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{net::Ipv4Addr, time::Instant};
 
 use super::{dns, http, tcp, tls};
 
@@ -29,11 +29,15 @@ pub struct CheckResult {
 
 /// Runs the DNS -> TCP -> TLS -> HTTP pipeline for a single check job.
 /// Stops at the first stage that fails and records where/why
-pub async fn run_check(domain: &str, expected_content: Option<&str>) -> CheckResult {
+pub async fn run_check(
+    domain: &str,
+    expected_content: Option<&str>,
+    dns_servers: &[Ipv4Addr],
+) -> CheckResult {
     let started = Instant::now();
     let mut result = CheckResult::default();
 
-    let ip = match time_stage(&mut result.dns_ms, || dns::resolve(domain)).await {
+    let ip = match time_stage(&mut result.dns_ms, || dns::resolve(domain, dns_servers)).await {
         Ok(ip) => ip,
         Err(err) => return fail(result, started, ErrorStage::Dns, err),
     };

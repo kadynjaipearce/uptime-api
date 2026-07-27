@@ -29,8 +29,6 @@ impl Scheduler {
         }
     }
 
-    /// Runs forever, ticking every `tick_interval`. Intended to be spawned
-    /// as its own background task alongside the HTTP server.
     pub async fn run(&self) {
         let mut ticker = tokio::time::interval(self.tick_interval);
 
@@ -58,9 +56,7 @@ impl Scheduler {
         Ok(())
     }
 
-    /// Enqueues one job per configured region for a single due URL, all
-    /// sharing one `check_round_id` so the resulting `checks` rows can be
-    /// correlated back into a single round.
+    /// Enqueues one job per configured region for a single due URL
     async fn enqueue_check_round(&self, url_id: Uuid) {
         let check_round_id = Uuid::new_v4();
 
