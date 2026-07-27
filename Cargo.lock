@@ -1896,6 +1896,7 @@ dependencies = [
  "chrono",
  "color-eyre",
  "dotenvy",
+ "rand",
  "regex",
  "serde",
  "serde_json",

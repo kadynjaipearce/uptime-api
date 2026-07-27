@@ -1,4 +1,4 @@
-use uptime_api::core::handler::dns::encode_domain_name;
+use uptime_api::core::handler::dns::{DnsQuery, build_query_packet, encode_domain_name};
 
 #[test]
 fn encodes_two_labels() {
@@ -61,4 +61,86 @@ fn max_length_label_of_63_bytes() {
     let encoded = encode_domain_name(&domain);
     assert_eq!(encoded[0], 63);
     assert_eq!(&encoded[1..64], label.as_bytes());
+}
+
+// A DNS header is a fixed 12 bytes: ID(2) FLAGS(2) QDCOUNT(2) ANCOUNT(2)
+// NSCOUNT(2) ARCOUNT(2), followed by QNAME, QTYPE(2), QCLASS(2).
+const HEADER_LEN: usize = 12;
+
+#[test]
+fn packet_starts_with_the_returned_transaction_id() {
+    let encoded = encode_domain_name("example.com");
+    let (packet, id) = build_query_packet(encoded, DnsQuery::A);
+    assert_eq!(&packet[0..2], &id.to_be_bytes());
+}
+
+#[test]
+fn packet_length_matches_header_plus_qname_plus_qtype_and_qclass() {
+    let encoded = encode_domain_name("example.com");
+    let qname_len = encoded.len();
+    let (packet, _id) = build_query_packet(encoded, DnsQuery::A);
+    assert_eq!(packet.len(), HEADER_LEN + qname_len + 4);
+}
+
+#[test]
+fn flags_request_recursion_desired() {
+    let encoded = encode_domain_name("example.com");
+    let (packet, _id) = build_query_packet(encoded, DnsQuery::A);
+    assert_eq!(&packet[2..4], &[0x01, 0x00]);
+}
+
+#[test]
+fn qdcount_is_one() {
+    let encoded = encode_domain_name("example.com");
+    let (packet, _id) = build_query_packet(encoded, DnsQuery::A);
+    assert_eq!(&packet[4..6], &[0x00, 0x01]);
+}
+
+#[test]
+fn ancount_nscount_arcount_are_zero() {
+    let encoded = encode_domain_name("example.com");
+    let (packet, _id) = build_query_packet(encoded, DnsQuery::A);
+    assert_eq!(&packet[6..HEADER_LEN], &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+}
+
+#[test]
+fn qname_section_matches_encoded_domain() {
+    let encoded = encode_domain_name("example.com");
+    let qname_len = encoded.len();
+    let (packet, _id) = build_query_packet(encoded.clone(), DnsQuery::A);
+    assert_eq!(&packet[HEADER_LEN..HEADER_LEN + qname_len], encoded.as_slice());
+}
+
+#[test]
+fn qtype_reflects_a_record() {
+    let encoded = encode_domain_name("example.com");
+    let qname_len = encoded.len();
+    let (packet, _id) = build_query_packet(encoded, DnsQuery::A);
+    let qtype = HEADER_LEN + qname_len;
+    assert_eq!(&packet[qtype..qtype + 2], &[0x00, 0x01]);
+}
+
+#[test]
+fn qtype_reflects_ns_record() {
+    let encoded = encode_domain_name("example.com");
+    let qname_len = encoded.len();
+    let (packet, _id) = build_query_packet(encoded, DnsQuery::NS);
+    let qtype = HEADER_LEN + qname_len;
+    assert_eq!(&packet[qtype..qtype + 2], &[0x00, 0x02]);
+}
+
+#[test]
+fn qclass_is_internet() {
+    let encoded = encode_domain_name("example.com");
+    let (packet, _id) = build_query_packet(encoded, DnsQuery::A);
+    let qclass = packet.len() - 2;
+    assert_eq!(&packet[qclass..], &[0x00, 0x01]);
+}
+
+#[test]
+fn transaction_ids_vary_between_calls() {
+    let ids: std::collections::HashSet<u16> = (0..20)
+        .map(|_| build_query_packet(encode_domain_name("example.com"), DnsQuery::A).1)
+        .collect();
+    assert!(ids.len() > 1, "expected varying transaction ids across calls");
 }
