@@ -100,7 +100,10 @@ fn qdcount_is_one() {
 fn ancount_nscount_arcount_are_zero() {
     let encoded = encode_domain_name("example.com");
     let (packet, _id) = build_query_packet(encoded, DnsQuery::A);
-    assert_eq!(&packet[6..HEADER_LEN], &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+    assert_eq!(
+        &packet[6..HEADER_LEN],
+        &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+    );
 }
 
 #[test]
@@ -108,7 +111,10 @@ fn qname_section_matches_encoded_domain() {
     let encoded = encode_domain_name("example.com");
     let qname_len = encoded.len();
     let (packet, _id) = build_query_packet(encoded.clone(), DnsQuery::A);
-    assert_eq!(&packet[HEADER_LEN..HEADER_LEN + qname_len], encoded.as_slice());
+    assert_eq!(
+        &packet[HEADER_LEN..HEADER_LEN + qname_len],
+        encoded.as_slice()
+    );
 }
 
 #[test]
@@ -142,5 +148,8 @@ fn transaction_ids_vary_between_calls() {
     let ids: std::collections::HashSet<u16> = (0..20)
         .map(|_| build_query_packet(encode_domain_name("example.com"), DnsQuery::A).1)
         .collect();
-    assert!(ids.len() > 1, "expected varying transaction ids across calls");
+    assert!(
+        ids.len() > 1,
+        "expected varying transaction ids across calls"
+    );
 }
