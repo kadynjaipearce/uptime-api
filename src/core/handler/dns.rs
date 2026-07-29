@@ -9,9 +9,13 @@ use tokio::net::UdpSocket;
 const QUERY_TIMEOUT: Duration = Duration::seconds(2);
 
 // encode domain names into byte array format for dns lookup.
-pub fn encode_domain_name(domain: &str) -> Vec<u8> {
+pub fn encode_domain_name(domain: &str) -> Result<Vec<u8>, anyhow::Error> {
     if domain.is_empty() {
-        return vec![0];
+        return Ok(vec![0]);
+    }
+
+    if domain.len() > u8::MAX as usize {
+        anyhow::bail!("domain name exceeds {} bytes: {domain}", u8::MAX);
     }
 
     let mut result: Vec<u8> = Vec::with_capacity(domain.len() + 2); // allocate extra 2 spots for beginning and trailing 0.
@@ -24,7 +28,7 @@ pub fn encode_domain_name(domain: &str) -> Vec<u8> {
 
     result.push(0_u8);
 
-    result
+    Ok(result)
 }
 
 /*
@@ -37,8 +41,10 @@ pub fn encode_domain_name(domain: &str) -> Vec<u8> {
 #[allow(dead_code)]
 pub enum DnsQuery {
     A = 1,
+    AAAA = 28,
     NS = 2,
     CNAME = 5,
+    TXT = 16,
 }
 
 pub fn build_query_packet(encoded_domain: &[u8], query_type: DnsQuery) -> (Vec<u8>, u16) {
@@ -91,7 +97,7 @@ async fn query_server(
 }
 
 pub async fn resolve(domain: &str, servers: &[Ipv4Addr]) -> Result<IpAddr, anyhow::Error> {
-    let encoded_domain = encode_domain_name(domain);
+    let encoded_domain = encode_domain_name(domain)?;
     let mut last_err = None;
 
     for &server in servers {
@@ -113,7 +119,10 @@ pub struct DnsProbe {
 pub async fn compare_resolvers(domain: &str, servers: &[Ipv4Addr]) -> Vec<DnsProbe> {
     let mut set = tokio::task::JoinSet::new();
 
-    let domain = Arc::new(encode_domain_name(domain));
+    let domain = match encode_domain_name(domain) {
+        Ok(encoded) => Arc::new(encoded),
+        Err(_) => return Vec::new(),
+    };
 
     for &server in servers {
         let domain_clone = Arc::clone(&domain);

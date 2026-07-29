@@ -14,7 +14,7 @@ Checks run from multiple AWS regions, so an alert tells you whether an outage is
 
 - A Postgres table of monitored URLs, one row per site, each with its own check interval and expected content string
 - A scheduler ticks on an interval, claims due URLs, and fans each one out into one job per configured region
-- Region workers (in progress) run the actual probe: DNS, connect, TLS, TTFB, full body, and report per-stage timings back
+- Region workers poll for jobs matching their own region, run the actual probe (DNS, connect, TLS, TTFB, full body), and write per-stage timings straight to the `checks` table
 - The response body is checked against the configured expected content string, so "200 OK, wrong content" counts as a failure, not a pass
 - Incidents open automatically when checks start failing and resolve when they recover
 
@@ -28,6 +28,8 @@ Early and actively in progress. Right now this is API-only. No frontend yet.
 
 - [x] Axum + Postgres (`sqlx`) project scaffold, migrations for `url`, `jobs`, `checks`, `incidents`, `content_snapshots`
 - [x] Scheduler skeleton. Polls due URLs on a tick and enqueues one job per configured region
+- [x] Region worker. Claims pending jobs for its region, runs the DNS to TCP to TLS to HTTP trace, and records the result
+- [x] DNS resolution built by hand over UDP (query packet construction, response parsing), no `trust-dns`/`hickory` dependency
 - [x] `POST /url`. Register a URL to monitor, with domain/name/interval validation
 - [x] `GET /url/:id`. Fetch a monitored URL
 - [x] `PATCH /url/:id`. Partial update
@@ -37,9 +39,8 @@ Early and actively in progress. Right now this is API-only. No frontend yet.
 
 ### Not built yet
 
-- [ ] The actual DNS to TCP to TLS to HTTP trace and probe logic (region workers)
+- [ ] Worker isn't spawned yet. `Worker` exists but `lib.rs` only starts the scheduler; nothing runs the worker loop or assigns it a region
 - [ ] `GET /url`. List all monitored URLs
-- [ ] Recording check results (`POST /checks`). Jobs are enqueued but nothing consumes them yet
 - [ ] Incident open/resolve endpoints (currently a read-only stub)
 - [ ] Content snapshot recording endpoint
 - [ ] Multi-region AWS deployment
@@ -109,4 +110,4 @@ git config core.hooksPath .githooks
 
 ## License
 
-TBD. The core API is planned to be open source. License file coming.
+MIT, see [LICENSE](./LICENSE).

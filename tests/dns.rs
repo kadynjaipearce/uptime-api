@@ -2,7 +2,7 @@ use uptime_api::core::handler::dns::{DnsQuery, build_query_packet, encode_domain
 
 #[test]
 fn encodes_two_labels() {
-    let encoded = encode_domain_name("example.com");
+    let encoded = encode_domain_name("example.com").unwrap();
     let mut expected = vec![7];
     expected.extend_from_slice(b"example");
     expected.push(3);
@@ -13,7 +13,7 @@ fn encodes_two_labels() {
 
 #[test]
 fn encodes_single_label() {
-    let encoded = encode_domain_name("localhost");
+    let encoded = encode_domain_name("localhost").unwrap();
     let mut expected = vec![9];
     expected.extend_from_slice(b"localhost");
     expected.push(0);
@@ -22,7 +22,7 @@ fn encodes_single_label() {
 
 #[test]
 fn encodes_subdomain_with_three_labels() {
-    let encoded = encode_domain_name("api.example.com");
+    let encoded = encode_domain_name("api.example.com").unwrap();
     let mut expected = vec![3];
     expected.extend_from_slice(b"api");
     expected.push(7);
@@ -35,19 +35,19 @@ fn encodes_subdomain_with_three_labels() {
 
 #[test]
 fn encodes_empty_domain_as_root() {
-    let encoded = encode_domain_name("");
+    let encoded = encode_domain_name("").unwrap();
     assert_eq!(encoded, vec![0]);
 }
 
 #[test]
 fn ends_with_null_terminator() {
-    let encoded = encode_domain_name("example.com");
+    let encoded = encode_domain_name("example.com").unwrap();
     assert_eq!(*encoded.last().unwrap(), 0);
 }
 
 #[test]
 fn label_length_matches_byte_count() {
-    let encoded = encode_domain_name("example.com");
+    let encoded = encode_domain_name("example.com").unwrap();
     // first byte is the length of "example"
     assert_eq!(encoded[0] as usize, "example".len());
     // next `example.len()` bytes are the label itself
@@ -58,7 +58,7 @@ fn label_length_matches_byte_count() {
 fn max_length_label_of_63_bytes() {
     let label = "a".repeat(63);
     let domain = format!("{label}.com");
-    let encoded = encode_domain_name(&domain);
+    let encoded = encode_domain_name(&domain).unwrap();
     assert_eq!(encoded[0], 63);
     assert_eq!(&encoded[1..64], label.as_bytes());
 }
@@ -69,14 +69,14 @@ const HEADER_LEN: usize = 12;
 
 #[test]
 fn packet_starts_with_the_returned_transaction_id() {
-    let encoded = encode_domain_name("example.com");
+    let encoded = encode_domain_name("example.com").unwrap();
     let (packet, id) = build_query_packet(&encoded, DnsQuery::A);
     assert_eq!(&packet[0..2], &id.to_be_bytes());
 }
 
 #[test]
 fn packet_length_matches_header_plus_qname_plus_qtype_and_qclass() {
-    let encoded = encode_domain_name("example.com");
+    let encoded = encode_domain_name("example.com").unwrap();
     let qname_len = encoded.len();
     let (packet, _id) = build_query_packet(&encoded, DnsQuery::A);
     assert_eq!(packet.len(), HEADER_LEN + qname_len + 4);
@@ -84,21 +84,21 @@ fn packet_length_matches_header_plus_qname_plus_qtype_and_qclass() {
 
 #[test]
 fn flags_request_recursion_desired() {
-    let encoded = encode_domain_name("example.com");
+    let encoded = encode_domain_name("example.com").unwrap();
     let (packet, _id) = build_query_packet(&encoded, DnsQuery::A);
     assert_eq!(&packet[2..4], &[0x01, 0x00]);
 }
 
 #[test]
 fn qdcount_is_one() {
-    let encoded = encode_domain_name("example.com");
+    let encoded = encode_domain_name("example.com").unwrap();
     let (packet, _id) = build_query_packet(&encoded, DnsQuery::A);
     assert_eq!(&packet[4..6], &[0x00, 0x01]);
 }
 
 #[test]
 fn ancount_nscount_arcount_are_zero() {
-    let encoded = encode_domain_name("example.com");
+    let encoded = encode_domain_name("example.com").unwrap();
     let (packet, _id) = build_query_packet(&encoded, DnsQuery::A);
     assert_eq!(
         &packet[6..HEADER_LEN],
@@ -108,7 +108,7 @@ fn ancount_nscount_arcount_are_zero() {
 
 #[test]
 fn qname_section_matches_encoded_domain() {
-    let encoded = encode_domain_name("example.com");
+    let encoded = encode_domain_name("example.com").unwrap();
     let qname_len = encoded.len();
     let (packet, _id) = build_query_packet(&encoded, DnsQuery::A);
     assert_eq!(
@@ -119,7 +119,7 @@ fn qname_section_matches_encoded_domain() {
 
 #[test]
 fn qtype_reflects_a_record() {
-    let encoded = encode_domain_name("example.com");
+    let encoded = encode_domain_name("example.com").unwrap();
     let qname_len = encoded.len();
     let (packet, _id) = build_query_packet(&encoded, DnsQuery::A);
     let qtype = HEADER_LEN + qname_len;
@@ -128,7 +128,7 @@ fn qtype_reflects_a_record() {
 
 #[test]
 fn qtype_reflects_ns_record() {
-    let encoded = encode_domain_name("example.com");
+    let encoded = encode_domain_name("example.com").unwrap();
     let qname_len = encoded.len();
     let (packet, _id) = build_query_packet(&encoded, DnsQuery::NS);
     let qtype = HEADER_LEN + qname_len;
@@ -137,7 +137,7 @@ fn qtype_reflects_ns_record() {
 
 #[test]
 fn qclass_is_internet() {
-    let encoded = encode_domain_name("example.com");
+    let encoded = encode_domain_name("example.com").unwrap();
     let (packet, _id) = build_query_packet(&encoded, DnsQuery::A);
     let qclass = packet.len() - 2;
     assert_eq!(&packet[qclass..], &[0x00, 0x01]);
@@ -146,7 +146,7 @@ fn qclass_is_internet() {
 #[test]
 fn transaction_ids_vary_between_calls() {
     let ids: std::collections::HashSet<u16> = (0..20)
-        .map(|_| build_query_packet(&encode_domain_name("example.com"), DnsQuery::A).1)
+        .map(|_| build_query_packet(&encode_domain_name("example.com").unwrap(), DnsQuery::A).1)
         .collect();
     assert!(
         ids.len() > 1,
