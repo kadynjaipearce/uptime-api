@@ -217,16 +217,24 @@ async fn query_server(
 
 pub async fn resolve(domain: &str, servers: &[Ipv4Addr]) -> Result<IpAddr, anyhow::Error> {
     let encoded_domain = encode_domain_name(domain)?;
-    let mut last_err = None;
+
+    if servers.is_empty() {
+        anyhow::bail!("no DNS servers configured");
+    }
+
+    let mut errors = Vec::with_capacity(servers.len());
 
     for &server in servers {
         match query_server(&encoded_domain, server, DnsRecordType::A).await {
             Ok(ip) => return Ok(IpAddr::V4(ip)),
-            Err(err) => last_err = Some(err),
+            Err(err) => errors.push(format!("{server}: {err}")),
         }
     }
 
-    Err(last_err.unwrap_or_else(|| anyhow::anyhow!("no DNS servers configured")))
+    Err(anyhow::anyhow!(
+        "all DNS servers failed: {}",
+        errors.join("; ")
+    ))
 }
 
 pub struct DnsProbe {
