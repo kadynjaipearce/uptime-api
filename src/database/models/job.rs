@@ -49,4 +49,80 @@ impl Database {
         .fetch_one(&self.pool)
         .await
     }
+
+    /// Claims up to `limit` pending jobs for `region`, marking them
+    /// `claimed` under `worker_id` so no other worker picks them up.
+    pub async fn claim_jobs(
+        &self,
+        region: &str,
+        worker_id: &str,
+        limit: i64,
+    ) -> sqlx::Result<Vec<JobRow>> {
+        let mut tx = self.pool.begin().await?;
+
+        let claimed = sqlx::query_as::<_, JobRow>(
+            r#"
+            SELECT * FROM jobs
+            WHERE status = 'pending'
+              AND run_at <= now()
+              AND payload->>'region' = $1
+            ORDER BY run_at
+            LIMIT $2
+            FOR UPDATE SKIP LOCKED
+            "#,
+        )
+        .bind(region)
+        .bind(limit)
+        .fetch_all(&mut *tx)
+        .await?;
+
+        for job in &claimed {
+            sqlx::query(
+                r#"
+                UPDATE jobs
+                SET status = 'claimed', claimed_by = $2, claimed_at = now(),
+                    attempts = attempts + 1
+                WHERE id = $1
+                "#,
+            )
+            .bind(job.id)
+            .bind(worker_id)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(claimed)
+    }
+
+    /// Marks a claimed job as done.
+    pub async fn complete_job(&self, job_id: Uuid) -> sqlx::Result<()> {
+        sqlx::query("UPDATE jobs SET status = 'completed' WHERE id = $1")
+            .bind(job_id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Records a job failure. Jobs that have exhausted `max_attempts` are
+    /// left `failed`; others go back to `pending` so a worker retries them.
+    pub async fn fail_job(&self, job_id: Uuid, error_message: &str) -> sqlx::Result<()> {
+        sqlx::query(
+            r#"
+            UPDATE jobs
+            SET status = CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'pending' END,
+                error_message = $2,
+                claimed_by = NULL,
+                claimed_at = NULL
+            WHERE id = $1
+            "#,
+        )
+        .bind(job_id)
+        .bind(error_message)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
 }

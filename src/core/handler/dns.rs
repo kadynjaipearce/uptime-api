@@ -51,7 +51,7 @@ pub fn build_query_packet(encoded_domain: &[u8], query_type: DnsQuery) -> (Vec<u
     ];
     let type_bytes = [q_hi, q_low, 0x00, 0x01];
 
-    let query = [&header_bytes[..], &encoded_domain, &type_bytes].concat();
+    let query = [&header_bytes[..], encoded_domain, &type_bytes].concat();
 
     (query, random)
 }
