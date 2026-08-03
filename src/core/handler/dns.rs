@@ -21,7 +21,9 @@ pub fn encode_domain_name(domain: &str) -> Result<Vec<u8>, anyhow::Error> {
     let mut result: Vec<u8> = Vec::with_capacity(domain.len() + 2); // allocate extra 2 spots for beginning and trailing 0.
 
     for word in domain.split('.') {
-        debug_assert!(word.len() <= 63, "DNS label exceeds 63 bytes: {word}");
+        if word.len() > 63 {
+            anyhow::bail!("DNS label exceeds 63 bytes: {word}");
+        }
         result.push(word.len() as u8);
         result.extend_from_slice(word.as_bytes());
     }
@@ -39,7 +41,7 @@ pub fn encode_domain_name(domain: &str) -> Result<Vec<u8>, anyhow::Error> {
 
 #[repr(u16)]
 #[allow(dead_code)]
-pub enum DnsQuery {
+pub enum DnsRecordType {
     A = 1,
     AAAA = 28,
     NS = 2,
@@ -47,7 +49,20 @@ pub enum DnsQuery {
     TXT = 16,
 }
 
-pub fn build_query_packet(encoded_domain: &[u8], query_type: DnsQuery) -> (Vec<u8>, u16) {
+impl DnsRecordType {
+    fn from_u16(value: u16) -> Option<Self> {
+        match value {
+            1 => Some(Self::A),
+            28 => Some(Self::AAAA),
+            2 => Some(Self::NS),
+            5 => Some(Self::CNAME),
+            16 => Some(Self::TXT),
+            _ => None,
+        }
+    }
+}
+
+pub fn build_query_packet(encoded_domain: &[u8], query_type: DnsRecordType) -> (Vec<u8>, u16) {
     let random: u16 = rand::random();
     let [high, low] = random.to_be_bytes();
     let [q_hi, q_low] = (query_type as u16).to_be_bytes();
@@ -80,34 +95,148 @@ async fn send_dns_packet(query: &[u8], server: Ipv4Addr) -> Result<Vec<u8>, anyh
     Ok(buffer[..amt].to_vec())
 }
 
-fn parse_dns_response(_response: Vec<u8>, _id: u16) -> Result<Ipv4Addr, anyhow::Error> {
-    unimplemented!()
+pub fn parse_dns_response(response: Vec<u8>, dns_id: u16) -> Result<Ipv4Addr, anyhow::Error> {
+    let mut cursor = 0_usize;
+
+    let response_id = read_u16(&response, &mut cursor)?;
+    if response_id != dns_id {
+        anyhow::bail!("response id mismatch: got {response_id}, expected {dns_id}");
+    }
+
+    let response_flags = read_u16(&response, &mut cursor)?;
+    let qr = (response_flags >> 15) & 0x1;
+    if qr != 1 {
+        anyhow::bail!("expected a DNS response, but QR bit indicates a query");
+    }
+
+    let rcode = response_flags & 0x000f;
+    if rcode != 0 {
+        anyhow::bail!("DNS server returned error code: {rcode}");
+    }
+
+    let qdcount = read_u16(&response, &mut cursor)?;
+    let ancount = read_u16(&response, &mut cursor)?;
+    let _nscount = read_u16(&response, &mut cursor)?;
+    let _arcount = read_u16(&response, &mut cursor)?;
+
+    // skip the entire question section, as we only care about the answer section
+    for _ in 0..qdcount {
+        skip_name(&response, &mut cursor)?;
+        let _qtype = read_u16(&response, &mut cursor)?;
+        let _qclass = read_u16(&response, &mut cursor)?;
+    }
+
+    if ancount == 0 {
+        anyhow::bail!("DNS response contained no answers");
+    }
+
+    for _ in 0..ancount {
+        skip_name(&response, &mut cursor)?;
+        let record = read_u16(&response, &mut cursor)?;
+        let _class = read_u16(&response, &mut cursor)?;
+        let _ttl = read_u32(&response, &mut cursor)?;
+        let rdlength = read_u16(&response, &mut cursor)? as usize;
+
+        if cursor + rdlength > response.len() {
+            anyhow::bail!("answer record RDATA runs past end of response");
+        }
+        let rdata = &response[cursor..cursor + rdlength];
+        cursor += rdlength;
+
+        if let Some(DnsRecordType::A) = DnsRecordType::from_u16(record) {
+            if rdlength != 4 {
+                anyhow::bail!("A record RDATA length was {rdlength}, expected 4");
+            }
+            return Ok(Ipv4Addr::new(rdata[0], rdata[1], rdata[2], rdata[3]));
+        }
+    }
+
+    Err(anyhow::anyhow!("no A record found in DNS response"))
+}
+
+fn skip_name(data: &[u8], cursor: &mut usize) -> Result<(), anyhow::Error> {
+    loop {
+        let len = *data
+            .get(*cursor)
+            .ok_or_else(|| anyhow::anyhow!("cursor out of bounds"))?;
+
+        if len == 0 {
+            *cursor += 1;
+            return Ok(());
+        }
+
+        if len & 0xC0 == 0xC0 {
+            if *cursor + 2 > data.len() {
+                anyhow::bail!("cursor out of bounds");
+            }
+            *cursor += 2;
+            return Ok(());
+        }
+
+        let label_start = *cursor + 1;
+        let label_end = label_start + len as usize;
+        if label_end > data.len() {
+            anyhow::bail!("cursor out of bounds");
+        }
+        *cursor = label_end;
+    }
+}
+
+fn read_u16(data: &[u8], cursor: &mut usize) -> Result<u16, anyhow::Error> {
+    if *cursor + 2 > data.len() {
+        return Err(anyhow::anyhow!("cursor out of bounds"));
+    }
+    let value = u16::from_be_bytes([data[*cursor], data[*cursor + 1]]);
+    *cursor += 2;
+    Ok(value)
+}
+
+fn read_u32(data: &[u8], cursor: &mut usize) -> Result<u32, anyhow::Error> {
+    if *cursor + 4 > data.len() {
+        return Err(anyhow::anyhow!("cursor out of bounds"));
+    }
+    let value = u32::from_be_bytes([
+        data[*cursor],
+        data[*cursor + 1],
+        data[*cursor + 2],
+        data[*cursor + 3],
+    ]);
+    *cursor += 4;
+    Ok(value)
 }
 
 async fn query_server(
     encoded_domain: &[u8],
     server: Ipv4Addr,
-    query_type: DnsQuery,
+    query_type: DnsRecordType,
 ) -> Result<Ipv4Addr, anyhow::Error> {
     let (query, tx_id) = build_query_packet(encoded_domain, query_type);
     let transaction = send_dns_packet(&query, server).await?;
-    let _result = parse_dns_response(transaction, tx_id);
+    let result = parse_dns_response(transaction, tx_id)?;
 
-    unimplemented!()
+    Ok(result)
 }
 
 pub async fn resolve(domain: &str, servers: &[Ipv4Addr]) -> Result<IpAddr, anyhow::Error> {
     let encoded_domain = encode_domain_name(domain)?;
-    let mut last_err = None;
+
+    if servers.is_empty() {
+        anyhow::bail!("no DNS servers configured");
+    }
+
+    let mut errors = Vec::with_capacity(servers.len());
 
     for &server in servers {
-        match query_server(&encoded_domain, server, DnsQuery::A).await {
+        match query_server(&encoded_domain, server, DnsRecordType::A).await {
             Ok(ip) => return Ok(IpAddr::V4(ip)),
-            Err(err) => last_err = Some(err),
+            Err(err) => errors.push(format!("{server}: {err}")),
         }
     }
 
-    Err(last_err.unwrap_or_else(|| anyhow::anyhow!("no DNS servers configured")))
+    Err(anyhow::anyhow!(
+        "all DNS servers failed: {}",
+        errors.join("; ")
+    ))
 }
 
 pub struct DnsProbe {
@@ -128,7 +257,7 @@ pub async fn compare_resolvers(domain: &str, servers: &[Ipv4Addr]) -> Vec<DnsPro
         let domain_clone = Arc::clone(&domain);
         set.spawn(async move {
             let started = std::time::Instant::now();
-            let result = query_server(&domain_clone, server, DnsQuery::A).await;
+            let result = query_server(&domain_clone, server, DnsRecordType::A).await;
             DnsProbe {
                 server,
                 result,
