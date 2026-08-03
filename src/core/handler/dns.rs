@@ -140,14 +140,19 @@ pub fn parse_dns_response(response: Vec<u8>, dns_id: u16) -> Result<Ipv4Addr, an
         if cursor + rdlength > response.len() {
             anyhow::bail!("answer record RDATA runs past end of response");
         }
-        let rdata = &response[cursor..cursor + rdlength];
+        let rdata = response
+            .get(cursor..cursor + rdlength)
+            .ok_or_else(|| anyhow::anyhow!("cursor out of bounds"))?;
         cursor += rdlength;
 
         if let Some(DnsRecordType::A) = DnsRecordType::from_u16(record) {
             if rdlength != 4 {
                 anyhow::bail!("A record RDATA length was {rdlength}, expected 4");
             }
-            return Ok(Ipv4Addr::new(rdata[0], rdata[1], rdata[2], rdata[3]));
+            let octets: [u8; 4] = rdata
+                .try_into()
+                .map_err(|_| anyhow::anyhow!("A record RDATA length was {rdlength}, expected 4"))?;
+            return Ok(Ipv4Addr::from(octets));
         }
     }
 
@@ -186,7 +191,11 @@ fn read_u16(data: &[u8], cursor: &mut usize) -> Result<u16, anyhow::Error> {
     if *cursor + 2 > data.len() {
         return Err(anyhow::anyhow!("cursor out of bounds"));
     }
-    let value = u16::from_be_bytes([data[*cursor], data[*cursor + 1]]);
+    let value = data
+        .get(*cursor..*cursor + 2)
+        .and_then(|slice| slice.try_into().ok())
+        .map(u16::from_be_bytes)
+        .ok_or_else(|| anyhow::anyhow!("cursor out of bounds"))?;
     *cursor += 2;
     Ok(value)
 }
@@ -195,12 +204,11 @@ fn read_u32(data: &[u8], cursor: &mut usize) -> Result<u32, anyhow::Error> {
     if *cursor + 4 > data.len() {
         return Err(anyhow::anyhow!("cursor out of bounds"));
     }
-    let value = u32::from_be_bytes([
-        data[*cursor],
-        data[*cursor + 1],
-        data[*cursor + 2],
-        data[*cursor + 3],
-    ]);
+    let value = data
+        .get(*cursor..*cursor + 4)
+        .and_then(|slice| slice.try_into().ok())
+        .map(u32::from_be_bytes)
+        .ok_or_else(|| anyhow::anyhow!("cursor out of bounds"))?;
     *cursor += 4;
     Ok(value)
 }
