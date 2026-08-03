@@ -68,6 +68,9 @@ pub trait UrlPayload {
 
     fn validate(&self) -> Result<(), AppError> {
         static DOMAIN: LazyLock<Regex> = LazyLock::new(|| {
+            // Pattern is a fixed literal, so a failure here is a compile-time
+            // guaranteed programmer error, not a runtime possibility.
+            #[allow(clippy::expect_used)]
             Regex::new(r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}$")
                 .expect("invalid domain regex")
         });

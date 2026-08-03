@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 use std::net::Ipv4Addr;
 
 use uptime_api::core::handler::dns::{
@@ -150,7 +152,13 @@ fn qclass_is_internet() {
 #[test]
 fn transaction_ids_vary_between_calls() {
     let ids: std::collections::HashSet<u16> = (0..20)
-        .map(|_| build_query_packet(&encode_domain_name("example.com").unwrap(), DnsRecordType::A).1)
+        .map(|_| {
+            build_query_packet(
+                &encode_domain_name("example.com").unwrap(),
+                DnsRecordType::A,
+            )
+            .1
+        })
         .collect();
     assert!(
         ids.len() > 1,
