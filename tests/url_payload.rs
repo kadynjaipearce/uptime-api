@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 use uptime_api::error::AppError;
 use uptime_api::http::url::{CreateUrl, UpdateUrl, UrlPayload};
 
