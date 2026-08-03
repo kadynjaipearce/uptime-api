@@ -21,7 +21,9 @@ pub fn encode_domain_name(domain: &str) -> Result<Vec<u8>, anyhow::Error> {
     let mut result: Vec<u8> = Vec::with_capacity(domain.len() + 2); // allocate extra 2 spots for beginning and trailing 0.
 
     for word in domain.split('.') {
-        debug_assert!(word.len() <= 63, "DNS label exceeds 63 bytes: {word}");
+        if word.len() > 63 {
+            anyhow::bail!("DNS label exceeds 63 bytes: {word}");
+        }
         result.push(word.len() as u8);
         result.extend_from_slice(word.as_bytes());
     }
