@@ -120,7 +120,7 @@ impl Worker {
                 dns_ms: result.dns_ms.map(|ms| ms as i32),
                 connect_ms: result.connect_ms.map(|ms| ms as i32),
                 tls_ms: result.tls_ms.map(|ms| ms as i32),
-                ttfb_ms: result.ttfb_ms.map(|ms| ms as i32),
+                ttfb_ms: result.http_response_ms.map(|ms| ms as i32),
                 total_ms: Some(result.total_ms as i32),
                 status_code: result.status_code.map(i32::from),
                 success: result.success,
