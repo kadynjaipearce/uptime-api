@@ -7,6 +7,7 @@ use crate::{
     core::{
         AppState,
         scheduler::{Scheduler, TICK_INTERVAL},
+        worker::{POLL_INTERVAL, Worker},
     },
     database::Database,
     secrets::Secrets,
@@ -31,8 +32,18 @@ pub async fn run() -> Result<()> {
 
     db.migrate().await?;
 
-    let scheduler = Scheduler::new(db.clone(), TICK_INTERVAL, config.regions.clone());
-    tokio::spawn(async move { scheduler.run().await });
+    if config.scheduler_enabled {
+        let scheduler = Scheduler::new(db.clone(), TICK_INTERVAL, config.regions.clone());
+        tokio::spawn(async move { scheduler.run().await });
+    }
+
+    let worker = Worker::new(
+        db.clone(),
+        config.region.clone(),
+        config.dns_servers.clone(),
+        POLL_INTERVAL,
+    );
+    tokio::spawn(async move { worker.run().await });
 
     let state = Arc::new(AppState { db, secrets });
     let app = http::router(&config, state)?;

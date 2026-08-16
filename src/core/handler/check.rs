@@ -17,7 +17,7 @@ pub struct CheckResult {
     pub dns_ms: Option<u32>,
     pub connect_ms: Option<u32>,
     pub tls_ms: Option<u32>,
-    pub ttfb_ms: Option<u32>,
+    pub http_response_ms: Option<u32>,
     pub total_ms: u32,
 
     pub status_code: Option<u16>,
@@ -52,7 +52,7 @@ pub async fn run_check(
         Err(err) => return fail(result, started, ErrorStage::Tls, err),
     };
 
-    let response = match time_stage(&mut result.ttfb_ms, || {
+    let response = match time_stage(&mut result.http_response_ms, || {
         http::probe(tls_stream, domain, expected_content)
     })
     .await

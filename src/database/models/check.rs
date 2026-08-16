@@ -15,7 +15,7 @@ pub struct CheckRow {
     pub dns_ms: Option<i32>,
     pub connect_ms: Option<i32>,
     pub tls_ms: Option<i32>,
-    pub ttfb_ms: Option<i32>,
+    pub http_response_ms: Option<i32>,
     pub total_ms: Option<i32>,
     pub status_code: Option<i32>,
     pub success: bool,
@@ -30,12 +30,12 @@ impl Database {
             r#"
             INSERT INTO checks (
                 url_id, check_round_id, region, dns_ms, connect_ms, tls_ms,
-                ttfb_ms, total_ms, status_code, success, error_stage,
+                http_response_ms, total_ms, status_code, success, error_stage,
                 error_message, content_hash
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING id, url_id, check_round_id, region, checked_at, dns_ms,
-                      connect_ms, tls_ms, ttfb_ms, total_ms, status_code,
+                      connect_ms, tls_ms, http_response_ms, total_ms, status_code,
                       success, error_stage, error_message, content_hash
             "#,
         )
@@ -45,7 +45,7 @@ impl Database {
         .bind(input.dns_ms)
         .bind(input.connect_ms)
         .bind(input.tls_ms)
-        .bind(input.ttfb_ms)
+        .bind(input.http_response_ms)
         .bind(input.total_ms)
         .bind(input.status_code)
         .bind(input.success)

@@ -1,14 +1,23 @@
 use anyhow::{Context, Result};
-use std::{net::IpAddr, str::FromStr};
+use std::{net::Ipv4Addr, str::FromStr};
 
 pub struct Config {
     pub version: String,
     pub max_connections: u32,
     pub port: u16,
     /// DNS servers queried when resolving a check's target, tried in order.
-    pub dns_servers: Vec<IpAddr>,
+    pub dns_servers: Vec<Ipv4Addr>,
     /// Regions the scheduler dispatches checks to. One check job is enqueued
+    /// per region here, regardless of which region this instance runs in.
+    /// Only read when `scheduler_enabled` is true.
     pub regions: Vec<String>,
+    /// The single region this instance's worker claims jobs for.
+    pub region: String,
+    /// Whether this instance runs the scheduler. One deployment (the
+    /// control plane) should have this on; regional worker-only
+    /// deployments should set it off so they don't all fan out duplicate
+    /// jobs to every region.
+    pub scheduler_enabled: bool,
     pub frontend_url: String,
 }
 
@@ -20,9 +29,11 @@ impl Config {
             port: env_or("PORT", 8080)?,
             dns_servers: env_list_or(
                 "DNS_SERVERS",
-                vec![IpAddr::from([8, 8, 8, 8]), IpAddr::from([1, 1, 1, 1])],
+                vec![Ipv4Addr::from([8, 8, 8, 8]), Ipv4Addr::from([1, 1, 1, 1])],
             )?,
             regions: env_list("REGIONS")?,
+            region: env_required("REGION")?,
+            scheduler_enabled: env_or("SCHEDULER_ENABLED", true)?,
             frontend_url: env_required("FRONTEND_URL")?,
         })
     }
