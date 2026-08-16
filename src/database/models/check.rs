@@ -29,7 +29,7 @@ impl Database {
         sqlx::query_as::<_, CheckRow>(
             r#"
             INSERT INTO checks (
-                url_id, check_round_id, region, dns_ms, connect_ms, http_response_ms, tls_ms,
+                url_id, check_round_id, region, dns_ms, connect_ms, tls_ms,
                 http_response_ms, total_ms, status_code, success, error_stage,
                 error_message, content_hash
             )
