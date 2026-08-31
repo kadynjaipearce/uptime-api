@@ -13,7 +13,7 @@ pub struct ProbeResponse {
 pub async fn probe(
     mut stream: TlsHandshakeOutcome,
     domain: &str,
-    expected_content: Option<&str>,
+    _expected_content: Option<&str>,
 ) -> Result<ProbeResponse, anyhow::Error> {
     let request = format!(
         "GET / HTTP/1.1\r\nHost: {}\r\nUser-Agent: rust-uptimeapi\r\nConnection: close\r\n\r\n",
