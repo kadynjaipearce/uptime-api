@@ -13,7 +13,7 @@ pub struct ProbeResponse {
 pub async fn probe(
     mut stream: TlsHandshakeOutcome,
     domain: &str,
-    _expected_content: Option<&str>,
+    expected_content: Option<&str>,
 ) -> Result<ProbeResponse, anyhow::Error> {
     let request = format!(
         "GET / HTTP/1.1\r\nHost: {}\r\nUser-Agent: rust-uptimeapi\r\nConnection: close\r\n\r\n",
@@ -35,9 +35,34 @@ pub async fn probe(
         anyhow::bail!("Response exceeds maximum allowed size of 10mb")
     }
 
-    if let Some(pos) = response_buf.windows(4).position(|w| w == b"\r\n\r\n") {
-        response_buf.drain(0..pos);
-    }
+    let pos = response_buf
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .ok_or_else(|| anyhow::anyhow!("response missing header/body separator"))?;
 
-    unimplemented!()
+    let header_bytes: Vec<u8> = response_buf.drain(0..pos).collect();
+    response_buf.drain(0..4);
+
+    let response_header = String::from_utf8_lossy(&header_bytes);
+    let response_body = String::from_utf8_lossy(&response_buf);
+
+    let status_line = response_header
+        .lines()
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("empty response header"))?;
+
+    let status_code: u16 = status_line
+        .split_whitespace()
+        .nth(1)
+        .ok_or_else(|| anyhow::anyhow!("malformed status line: {status_line}"))?
+        .parse()?;
+
+    let content_matched: Option<bool> =
+        expected_content.map(|content| response_body.contains(content));
+
+    Ok(ProbeResponse {
+        status_code,
+        content_matched,
+        content_hash: blake3::hash(&response_buf).to_string(), // hash the body of the response for comparison
+    })
 }

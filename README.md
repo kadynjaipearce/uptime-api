@@ -28,21 +28,25 @@ Early and actively in progress. Right now this is API-only. No frontend yet.
 
 - [x] Axum + Postgres (`sqlx`) project scaffold, migrations for `url`, `jobs`, `checks`, `incidents`, `content_snapshots`
 - [x] Scheduler skeleton. Polls due URLs on a tick and enqueues one job per configured region
-- [x] Region worker. Claims pending jobs for its region, runs the DNS to TCP to TLS to HTTP trace, and records the result
+- [x] Region worker. Spawned in `lib.rs` alongside the scheduler, bound to its own `REGION`; claims pending jobs and runs the DNS to TCP to TLS to HTTP trace
 - [x] DNS resolution built by hand over UDP (query packet construction, response parsing), no `trust-dns`/`hickory` dependency
+- [x] TCP connect and TLS handshake (cert expiry extraction) stages, each timed independently
 - [x] `POST /url`. Register a URL to monitor, with domain/name/interval validation
 - [x] `GET /url/:id`. Fetch a monitored URL
 - [x] `PATCH /url/:id`. Partial update
 - [x] `DELETE /url/:id`
+- [x] `GET /url/:id/incidents`. List open incidents for a URL
+- [x] `GET /url/:id/checks`. Recent check history for a URL
 - [x] Uniform JSON envelope for success and error responses
 - [x] Validation test coverage for URL payloads
 
 ### Not built yet
 
-- [ ] Worker isn't spawned yet. `Worker` exists but `lib.rs` only starts the scheduler; nothing runs the worker loop or assigns it a region
+- [ ] HTTP probe stage (`core/handler/http.rs`). DNS/TCP/TLS stages are implemented, but the request/response read + content-hash comparison is still `unimplemented!()` — no check completes end-to-end yet
 - [ ] `GET /url`. List all monitored URLs
-- [ ] Incident open/resolve endpoints (currently a read-only stub)
+- [ ] Incident open/resolve endpoints (currently read-only)
 - [ ] Content snapshot recording endpoint
+- [ ] Alerting on confirmed incidents (email/webhook)
 - [ ] Multi-region AWS deployment
 - [ ] Auth / API keys
 - [ ] Frontend
@@ -91,8 +95,9 @@ Base path: `/api/{VERSION_SLUG}/`
 | GET | `/url/:id` | working |
 | PATCH | `/url/:id` | working |
 | DELETE | `/url/:id` | working |
-| GET | `/url/:id/incidents` | stub |
-| GET | `/url/:id/checks` | stub |
+| GET | `/url/:id/incidents` | working (read-only) |
+| GET | `/url/:id/checks` | working (read-only) |
+| GET | `/url` | not built |
 
 ## Testing
 
