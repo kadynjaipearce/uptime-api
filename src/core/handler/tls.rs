@@ -10,7 +10,7 @@ const TLS_TIMEOUT: Duration = Duration::seconds(2);
 static TLS_CONFIG: OnceLock<Arc<ClientConfig>> = OnceLock::new();
 
 pub struct TlsHandshakeOutcome {
-    pub stream: TlsStream<TcpStream>,
+    pub tcp: TlsStream<TcpStream>,
     pub cert_expires_at: Option<DateTime<Utc>>,
 }
 
@@ -67,7 +67,7 @@ pub async fn handshake(
         });
 
     Ok(TlsHandshakeOutcome {
-        stream: tls_stream.into(),
+        tcp: tls_stream.into(),
         cert_expires_at,
     })
 }

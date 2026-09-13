@@ -54,6 +54,15 @@ impl Database {
         .await
     }
 
+    pub async fn latest_open_incident(&self, url_id: Uuid) -> sqlx::Result<Option<IncidentRow>> {
+        sqlx::query_as::<_, IncidentRow>(
+            "SELECT * FROM incidents WHERE url_id = $1 AND resolved = false ORDER BY started_at DESC LIMIT 1",
+        )
+        .bind(url_id)
+        .fetch_optional(&self.pool)
+        .await
+    }
+
     pub async fn list_open_incidents_for_url(
         &self,
         url_id: Uuid,

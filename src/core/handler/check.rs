@@ -25,6 +25,7 @@ pub struct CheckResult {
     pub error_stage: Option<ErrorStage>,
     pub error_message: Option<String>,
     pub content_hash: Option<String>,
+    pub content_matched: Option<bool>,
 }
 
 /// Runs the DNS -> TCP -> TLS -> HTTP pipeline for a single check job.
@@ -63,8 +64,9 @@ pub async fn run_check(
 
     result.status_code = Some(response.status_code);
     result.content_hash = Some(response.content_hash);
-    result.success = true;
+    result.content_matched = response.content_matched;
     result.total_ms = elapsed_ms(started);
+    result.success = true;
     result
 }
 

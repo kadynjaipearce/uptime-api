@@ -7,7 +7,11 @@ use uuid::Uuid;
 use crate::{
     core::handler::check,
     database::{Database, models::job::JobRow},
-    http::check::RecordCheck,
+    http::{
+        check::RecordCheck,
+        content_snapshot::RecordContentSnapshot,
+        incident::{OpenIncident, ResolveIncident},
+    },
 };
 
 /// How many jobs a single poll will claim for this worker's region.
@@ -112,6 +116,25 @@ impl Worker {
         )
         .await;
 
+        let latest_snapshot = self.db.latest_content_snapshot(payload.url_id).await?;
+
+        let hash_changed = match (&result.content_hash, &latest_snapshot) {
+            (Some(new_hash), Some(old_hash)) if new_hash != &old_hash.content_hash => {
+                Some(new_hash.clone())
+            }
+            (Some(new_hash), None) => Some(new_hash.clone()),
+            _ => None,
+        };
+
+        if let Some(new_hash) = hash_changed {
+            self.db
+                .record_content_snapshot(RecordContentSnapshot {
+                    url_id: payload.url_id,
+                    content_hash: new_hash,
+                })
+                .await?;
+        }
+
         self.db
             .record_check(RecordCheck {
                 url_id: payload.url_id,
@@ -125,10 +148,37 @@ impl Worker {
                 status_code: result.status_code.map(i32::from),
                 success: result.success,
                 error_stage: result.error_stage.map(|stage| format!("{stage:?}")),
-                error_message: result.error_message,
+                error_message: result.error_message.clone(),
                 content_hash: result.content_hash,
             })
             .await?;
+
+        let open_incident = self.db.latest_open_incident(payload.url_id).await?;
+
+        match (result.content_matched, open_incident) {
+            (Some(false), None) => {
+                self.db
+                    .open_incident(OpenIncident {
+                        url_id: payload.url_id,
+                        cause: result.error_message,
+                    })
+                    .await?;
+            }
+            (Some(false), Some(_incident)) => {
+                // still open, nothing to do
+            }
+            (Some(true), Some(incident)) => {
+                self.db
+                    .resolve_incident(
+                        incident.id,
+                        ResolveIncident {
+                            cause: result.error_message,
+                        },
+                    )
+                    .await?;
+            }
+            _ => {}
+        }
 
         Ok(())
     }
