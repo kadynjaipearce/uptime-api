@@ -46,15 +46,11 @@ pub async fn probe(
     let response_header = String::from_utf8_lossy(&header_bytes);
     let response_body = String::from_utf8_lossy(&response_buf);
 
-    let status_line = response_header
+    let status_code: u16 = response_header
         .lines()
         .next()
-        .ok_or_else(|| anyhow::anyhow!("empty response header"))?;
-
-    let status_code: u16 = status_line
-        .split_whitespace()
-        .nth(1)
-        .ok_or_else(|| anyhow::anyhow!("malformed status line: {status_line}"))?
+        .and_then(|line| line.split_whitespace().nth(1))
+        .ok_or_else(|| anyhow::anyhow!("malformed status line"))?
         .parse()?;
 
     let content_matched: Option<bool> =
