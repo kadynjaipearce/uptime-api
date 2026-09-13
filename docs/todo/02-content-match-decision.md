@@ -1,19 +1,16 @@
-# 2. Decide what a content mismatch means, and carry it through
+# 2. Decide what a content mismatch means, and carry it through — DONE
 
-Depends on #1 being done (need `content_matched` to actually exist first).
+**Decision:** a mismatch does not fail the check (`success` is unaffected,
+no new `ErrorStage`, no migration on `checks`/`CheckRow`). Instead it drives
+an incident lifecycle (see #3).
 
-- [ ] Decide: does a content mismatch just get reported (temporary signal,
-      no schema change), or does it make the check a failure
-      (`success = false`) and/or get persisted per-check (needs a migration)?
-- [ ] Add a `content_matched` field to `CheckResult`
-      (`core/handler/check.rs:16-28`) — currently has no slot for it.
-- [ ] Set it in `run_check` after the HTTP stage runs.
-- [ ] If a mismatch should count as a failed check: add a fifth
-      `ErrorStage` variant (e.g. `ContentMismatch`) alongside the existing
-      `Dns/Connect/Tls/Http` (`check.rs:6-12`), so `error_stage` in the DB
-      can distinguish "never got a response" from "responded, wrong content."
-- [ ] If it's only meant to feed the snapshot/alert logic (see #3) and
-      shouldn't affect `success`: skip touching `ErrorStage` entirely, just
-      thread `content_matched` through as its own field.
-- [ ] If persisting per-check: add the column via migration, update
-      `RecordCheck` / `CheckRow`.
+- [x] `content_matched: Option<bool>` added to `CheckResult`
+      (`core/handler/check.rs`).
+- [x] Set in `run_check` from `response.content_matched` after the HTTP
+      stage runs.
+- [x] No `ErrorStage::ContentMismatch` — mismatch is tracked separately via
+      the `incidents` table instead of the `checks` row.
+- [x] `Worker::process_check` (`core/worker.rs`) opens an incident when
+      `content_matched` goes from matching/unknown to `Some(false)` with no
+      open incident yet, and resolves it when `content_matched` becomes
+      `Some(true)` while one is open. See #3 for the incidents-table details.

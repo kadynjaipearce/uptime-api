@@ -1,25 +1,32 @@
-# 3. Wire snapshot compare/save into the worker
-
-Independent of #2 — only needs a `content_hash` from #1, doesn't need #2
-resolved in any particular shape.
+# 3. Wire snapshot compare/save into the worker — DONE
 
 `Database::record_content_snapshot` and `Database::latest_content_snapshot`
-(`src/database/models/content_snapshot.rs`) already exist and work. Nothing
-calls them yet.
+(`src/database/models/content_snapshot.rs`) are now called from
+`Worker::process_check` (`src/core/worker.rs`):
 
-- [ ] In `Worker::process_check` (`src/core/worker.rs:99-134`), after
-      `check::run_check` returns:
-  - [ ] Call `latest_content_snapshot(url_id)` to get the previous hash (if
-        any).
-  - [ ] Compare it to this check's `content_hash`.
-  - [ ] If different (or no previous snapshot exists), call
-        `record_content_snapshot` to save the new one.
-- [ ] Open scope question: should content drift alone raise an incident?
-      There's an unused migration (`migrations/20260720111700_create_incidents.sql`)
-      but nothing in `worker.rs` writes to it yet. Decide whether drift alone
-      creates an incident, or only when combined with `success`/
-      `content_matched` from #2.
+- [x] Fetches `latest_content_snapshot(url_id)`.
+- [x] Compares it against this check's `content_hash` (a `match` producing
+      the hash to save, `None` when unchanged — avoids `unwrap()`).
+- [x] Calls `record_content_snapshot` when the hash differs or there was no
+      previous snapshot.
 
-**Suggested order overall:** #1 → #2 → #3. #1 unblocks compilation, #2
-decides whether a migration is needed at all, #3 is worker-loop wiring that
-can happen independently once #1 produces a real `content_hash`.
+**Scope question resolved:** content drift alone does *not* raise an
+incident. Incidents are keyed off `content_matched` (from #2) instead —
+`migrations/20260720111700_create_incidents.sql` is now in use, with a
+follow-up migration (`20260913132408_fix_incidents_resolved_at_nullable.sql`)
+making `resolved_at` nullable so an open incident can be inserted before
+it's resolved. `src/database/models/incident.rs` /
+`src/http/incident.rs` hold the row type and `open_incident` /
+`resolve_incident` / `latest_open_incident` / `list_open_incidents_for_url`
+queries.
+
+## Still open
+
+- [ ] No tests yet for the incident state-transition `match` or the
+      snapshot-diff `match` in `worker.rs` (the pure logic in
+      `core/handler/http.rs::parse_response` is covered, but the worker-level
+      wiring isn't).
+- [ ] Haven't run the full pipeline against a real target end-to-end yet to
+      confirm probe -> snapshot -> incident behaves as expected.
+- [ ] `Content-Length` / chunked body handling still not implemented (see
+      #1's known limitation).
